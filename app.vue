@@ -1,4 +1,13 @@
 <script setup lang="ts">
+// meta information
+useHead({
+    title: "給与概算",
+    meta: [
+        { name: "description", content: "給与を概算する。" }
+    ],
+    htmlAttrs: { lang: "ja" }
+})
+
 // utils
 function hour2Time(val: number) {
     if (!val) { return "" }
@@ -29,7 +38,8 @@ const day = computed({ get() { { return d__day.value || "" } }, set(val) { d__da
 const d__hourly = ref(1325)
 const hourly = computed({ get() { { return d__hourly.value || "" } }, set(val) { d__hourly.value = +val } })
 function resetHourly() {
-    d__hourly.value = ~~(d__base.value / d__day.value / 7.5 * 1000) / 1000
+    const rawHourly = d__base.value / d__day.value / 8
+    d__hourly.value = ~~(rawHourly * 1000) / 1000 // 小数3桁以下を切り捨てる
 }
 
 // 残業
@@ -59,7 +69,7 @@ const d__unemployed = ref("00:00")
 const unemployed = computed({ get() { return d__unemployed.value }, set(val) { d__unemployed.value = val } })
 
 // 所得
-const grossIncome = computed(() => d__base.value + ((hr(d__overtime) + hr(d__midnightTime)) * 1.25 + hr(d__fixedOvertime) - hr(d__unemployed)) * d__hourly.value)
+const grossIncome = computed(() => d__base.value + /* 調整手当 */10000 + (hr(d__overtime) * 1.25 + hr(d__midnightTime) * 0.5625 + hr(d__fixedOvertime) - hr(d__unemployed)) * d__hourly.value)
 
 // 控除
 const socialInsurance = computed(() => /* 健康保険料 */10010 + /* 厚生年金保険料 */20130 + /* 雇用保険料 */(grossIncome.value * 0.006))
@@ -77,66 +87,63 @@ const deductedIncome = computed(() => grossIncome.value - totalDeductions.value 
 <template>
     <div class="wrapper">
         <div class="container">
-            <div class="tables_1">
-                <table>
-                    <caption>契約内容</caption>
-                    <tr>
-                        <td>基本給</td>
-                        <td><input type="number" id="base" v-model="base" step="1000">円</td>
-                    </tr>
-                    <tr>
-                        <td>所定労働日数</td>
-                        <td><input type="number" id="day" v-model="day">日</td>
-                    </tr>
-                    <tr>
-                        <td>時給 <button @click="resetHourly">計算</button> </td>
-                        <td> <input type="number" id="hourly" v-model="hourly" step="50">円/h</td>
-                    </tr>
-                </table>
-                <table class="grid-2">
-                    <caption>勤務実績</caption>
-                    <tr>
-                        <td>残業時間</td>
-                        <td> <input type="text" mode="numeric" id="overtime" v-model="overtime" step="600" size="5"
-                                @focus="onFocus">h </td>
-                    </tr>
-                    <tr>
-                        <td>（法定内残業時間</td>
-                        <td> <input type="time" id="fixed-overtime" v-model="fixedOvertime" step="600">h ）</td>
-                    </tr>
-                    <tr>
-                        <td>深夜時間</td>
-                        <td> <input type="time" id="midnight" v-model="midnightTime" step="600">h </td>
-                    </tr>
-                    <tr>
-                        <td>不就労</td>
-                        <td> <input type="time" id="unemployed" v-model="unemployed">h </td>
-                    </tr>
-                </table>
-            </div>
-            <div>
-                <table>
-                    <caption>給与/所得</caption>
-                    <tr>
-                        <td>残業代</td>
-                        <td> <input type="text" class="salary" size="8" id="overtime_pay"
-                                :value="(~~overtimePay).toLocaleString()" readonly>円
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>所得</td>
-                        <td> <input type="text" class="salary" size="8" id="total" :value="(~~grossIncome).toLocaleString()"
-                                readonly>円
-                        </td>
-                    </tr>
-                    <tr class="deducted-income">
-                        <td>給与</td>
-                        <td> <input type="text" class="salary" size="8" id="deducted-income"
-                                :value="(~~deductedIncome).toLocaleString()" readonly>円
-                        </td>
-                    </tr>
-                </table>
-            </div>
+            <table class="grid-2">
+                <caption>契約内容</caption>
+                <tr>
+                    <td>基本給</td>
+                    <td><input type="number" id="base" v-model="base" step="1000" size="8">円</td>
+                </tr>
+                <tr>
+                    <td>所定労働日数</td>
+                    <td><input type="number" id="day" v-model="day" size="3">日</td>
+                </tr>
+                <tr>
+                    <td>時給 <button @click="resetHourly">計算</button> </td>
+                    <td> <input type="number" id="hourly" v-model="hourly" step="50" size="8">円/h</td>
+                </tr>
+            </table>
+            <table class="grid-2">
+                <caption>勤務実績</caption>
+                <tr>
+                    <td>残業時間</td>
+                    <td> <input type="text" mode="numeric" id="overtime" v-model="overtime" step="600" size="5"
+                            @focus="onFocus">h </td>
+                </tr>
+                <tr>
+                    <td>（法定内残業時間</td>
+                    <td> <input type="time" id="fixed-overtime" v-model="fixedOvertime" step="600">h ）</td>
+                </tr>
+                <tr>
+                    <td>深夜時間</td>
+                    <td> <input type="time" id="midnight" v-model="midnightTime" step="600">h </td>
+                </tr>
+                <tr>
+                    <td>不就労</td>
+                    <td> <input type="time" id="unemployed" v-model="unemployed">h </td>
+                </tr>
+            </table>
+            <div class="br"></div>
+            <table class="grid-2">
+                <caption>給与/所得</caption>
+                <tr>
+                    <td>残業代</td>
+                    <td> <input type="text" class="salary" size="8" id="overtime_pay"
+                            :value="(~~overtimePay).toLocaleString()" readonly>円
+                    </td>
+                </tr>
+                <tr>
+                    <td>所得</td>
+                    <td> <input type="text" class="salary" size="8" id="total" :value="(~~grossIncome).toLocaleString()"
+                            readonly>円
+                    </td>
+                </tr>
+                <tr class="deducted-income">
+                    <td>給与</td>
+                    <td> <input type="text" class="salary" size="8" id="deducted-income"
+                            :value="(~~deductedIncome).toLocaleString()" readonly>円
+                    </td>
+                </tr>
+            </table>
             <!-- <div>
                 <table>
                     <caption>utility</caption>
@@ -157,15 +164,23 @@ const deductedIncome = computed(() => grossIncome.value - totalDeductions.value 
 }
 
 .container {
-    max-width: 80%;
+    min-width: 300px;
+    width: 80%;
+    display: flex;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    justify-content: center;
+    gap: 10px 20px;
 }
 
-.container>div {
-    margin-block: 20px;
+div.br {
+    width: 100%;
+    margin: 0;
 }
 
 .tables_1 {
     display: flex;
+    flex-shrink: 0;
     justify-content: space-between;
     gap: 20px;
 }
@@ -191,13 +206,17 @@ table tr {
 }
 
 table td {
-    display: block;
+    display: inline-block;
 }
 
 table,
 *.tr,
 *.td {
     margin: 0;
+}
+
+input {
+    width: 6em;
 }
 
 input#deducted-income {
